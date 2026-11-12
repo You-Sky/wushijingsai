@@ -9,6 +9,12 @@ export type Wrong = {count:number; status:'pending'|'mastered'|'removed'; lastWr
 export type Exam = {id:string; questions:Question[]; answers:Record<number,string[]>; startedAt:number; deadline:number|null; submittedAt?:number; elapsed?:number; score?:number; correctCount?:number; title:string};
 export type State = {version:1; attempts:Attempt[]; wrongs:Record<number,Wrong>; favorites:number[]; cursor:number; drafts:Record<number,string[]>; exams:Exam[]; activeExam:Exam|null; overrides:Record<number,Question>};
 export function initialState():State {return {version:1,attempts:[],wrongs:{},favorites:[],cursor:1,drafts:{},exams:[],activeExam:null,overrides:{}}}
+export function beginPractice(state:State,ids:number[]|null,start?:number,fresh=false):State {
+ const cursor=start??ids?.[0]??state.cursor;
+ if(!fresh||!ids?.length)return cursor===state.cursor?state:{...state,cursor};
+ const drafts={...state.drafts};for(const id of ids)drafts[id]=[];
+ return {...state,cursor,drafts};
+}
 export function equalAnswer(a:string[],b:string[]) {return a.length>0&&new Set(a).size===a.length&&[...a].sort().join('|')===[...b].sort().join('|')}
 export function uid(){return crypto.randomUUID()}
 export function recordAnswer(state:State,q:Question,answer:string[],mode:'practice'|'exam'='practice',examId?:string,at=Date.now()):State {

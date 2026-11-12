@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { BookOpen, LayoutDashboard, NotebookPen, ClipboardList, Star, Search, Settings, ChevronRight, ChevronLeft, ArrowRight, Check, X, ShieldCheck, History, Library, Download, Upload, RotateCcw, Pencil, Menu, Clock3, CheckCircle2, CircleHelp, Target, Flame, Bookmark, FileCheck2 } from 'lucide-react';
-import { bank, sections, types, difficulties, initialState, recordAnswer, finishExam, sampleQuestions, equalAnswer, validateBackup, validateQuestion, download, percent, uid, type State, type Question, type Exam } from './core';
+import { bank, sections, types, difficulties, initialState, beginPractice, recordAnswer, finishExam, sampleQuestions, equalAnswer, validateBackup, validateQuestion, download, percent, uid, type State, type Question, type Exam } from './core';
 import { loadState, saveState } from './storage';
 import report from './data/import-report.json';
 type Page='dashboard'|'practice'|'wrongs'|'favorites'|'exam'|'history'|'library'|'settings';
@@ -43,7 +43,7 @@ export default function App(){
  const exam=s.activeExam,result=s.exams.find(e=>e.id===resultId);
  const examPool=questions.filter(q=>matches(q,examFilter));
  const go=(p:Page)=>{setPage(p);setMobile(false);setFilter(blank);setPracticeIds(null);if(p==='exam')setResultId(null);window.scrollTo(0,0)};
- const practice=(ids:number[]|null=null,start?:number)=>{setPracticeIds(ids);setFilter(blank);setPage('practice');setMobile(false);if(start??ids?.[0])update(p=>({...p,cursor:start??ids![0]}));window.scrollTo(0,0)};
+ const practice=(ids:number[]|null=null,start?:number)=>{setPracticeIds(ids);setFilter(blank);setPage('practice');setMobile(false);if(page==='wrongs'||(start??ids?.[0]))update(p=>beginPractice(p,ids,start,page==='wrongs'));window.scrollTo(0,0)};
  const move=(id:number)=>{update(p=>({...p,cursor:id}));window.scrollTo({top:0,behavior:'smooth'})};
  const fav=(id:number)=>update(p=>({...p,favorites:p.favorites.includes(id)?p.favorites.filter(n=>n!==id):[...p.favorites,id]}));
  const redo=(id:number)=>{setRetries(v=>[...v,id]);update(p=>({...p,drafts:{...p.drafts,[id]:[]}}))};

@@ -1,9 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bank, equalAnswer, recordAnswer, initialState, sampleQuestions, finishExam, validateBackup, validateQuestion } from '../src/core';
+import { bank, equalAnswer, recordAnswer, initialState, beginPractice, sampleQuestions, finishExam, validateBackup, validateQuestion } from '../src/core';
 test('所有400道题的标准答案能判为正确，错误或空白不能得分',()=>{for(const q of bank){assert.ok(equalAnswer(q.answer,q.answer));assert.ok(!equalAnswer([],q.answer));const wrong=q.type==='判断题'?[q.answer[0]==='正确'?'错误':'正确']:['Z'];assert.ok(!equalAnswer(wrong,q.answer));if(q.type==='多选题'){assert.ok(equalAnswer([...q.answer].reverse(),q.answer));assert.ok(!equalAnswer(q.answer.slice(1),q.answer));assert.ok(!equalAnswer([...q.answer,q.answer[0]],q.answer))}}});
 test('错题保留累计次数，答对掌握，再错恢复待掌握',()=>{let s=recordAnswer(initialState(),bank[0],['Z']);assert.equal(s.wrongs[1].status,'pending');s=recordAnswer(s,bank[0],bank[0].answer);assert.equal(s.wrongs[1].status,'mastered');assert.equal(s.wrongs[1].count,1);s=recordAnswer(s,bank[0],['Z']);assert.equal(s.wrongs[1].count,2);assert.equal(s.wrongs[1].status,'pending');s.wrongs[1].status='removed';s=recordAnswer(s,bank[0],['Z']);assert.equal(s.wrongs[1].status,'pending');assert.equal(s.attempts.length,4)});
 test('按筛选题池组卷，无重复，不超过题池且题量为整数',()=>{for(const count of [20,40,50,80,100,400]){const selected=sampleQuestions(bank,count);assert.equal(selected.length,count);assert.equal(new Set(selected.map(q=>q.id)).size,count)}const p=bank.filter(q=>q.section==='党史'&&q.type==='多选题'&&q.difficulty==='较难');assert.ok(sampleQuestions(p,p.length).every(q=>q.section==='党史'&&q.type==='多选题'&&q.difficulty==='较难'));for(const n of [0,-1,401,1.5,NaN])assert.throws(()=>sampleQuestions(bank,n))});
 test('考试精确计分、空白同步错题、快照保留、重复提交幂等',()=>{let s=initialState();const qs=[bank[0],bank[40],bank[60]];s.activeExam={id:'exam1',title:'test',questions:structuredClone(qs),answers:{1:qs[0].answer,41:[...qs[1].answer].reverse()},startedAt:1000,deadline:61000};s=finishExam(s,62000);assert.equal(s.exams[0].correctCount,2);assert.equal(s.exams[0].score,66.67);assert.equal(s.exams[0].elapsed,60000);assert.equal(s.exams[0].submittedAt,61000);assert.equal(s.wrongs[61].count,1);assert.equal(s.attempts.length,3);assert.equal(s.activeExam,null);assert.deepEqual(finishExam(s),s);s.overrides[1]={...qs[0],stem:'edited'};assert.notEqual(s.exams[0].questions[0].stem,'edited')});
 test('备份可往返，损坏结构被拒绝，题库编辑验证字段',()=>{let s=recordAnswer(initialState(),bank[0],['A']);s.favorites=[1];assert.deepEqual(validateBackup(JSON.parse(JSON.stringify(s))),s);assert.throws(()=>validateBackup({version:1}));assert.throws(()=>validateBackup({...s,cursor:401}));assert.throws(()=>validateBackup({...s,wrongs:{1:{count:1}}}));assert.throws(()=>validateBackup({...s,overrides:{1:{...bank[0],answer:['Z']}}}));assert.deepEqual(validateQuestion(bank[0]),[]);assert.ok(validateQuestion({...bank[0],stem:''}).length)});
 test('练习草稿持久化，提交后清理草稿并保存当前位置',()=>{let s=initialState();s.drafts[41]=['A','B'];const restored=validateBackup(JSON.parse(JSON.stringify(s)));assert.deepEqual(restored.drafts[41],['A','B']);s=recordAnswer(restored,bank[40],bank[40].answer);assert.ok(!Object.hasOwn(s.drafts,41));assert.equal(s.cursor,41);s.drafts[41]=[];assert.ok(Object.hasOwn(validateBackup(JSON.parse(JSON.stringify(s))).drafts,41))});
+test('错题整轮重新练习隐藏所有旧答案，并完整保留历史记录',()=>{
+ let s=recordAnswer(initialState(),bank[0],['A']);s=recordAnswer(s,bank[1],['A']);
+ s.drafts={1:['C'],2:['D'],41:['A','B']};s.favorites=[1];
+ const before=structuredClone(s),retry=beginPractice(s,[1,2],2,true);
+ assert.deepEqual(s,before);assert.equal(retry.cursor,2);
+ assert.deepEqual(retry.drafts,{1:[],2:[],41:['A','B']});
+ for(const key of ['attempts','wrongs','favorites','exams','activeExam','overrides'] as const)assert.deepEqual(retry[key],before[key]);
+ assert.deepEqual(validateBackup(JSON.parse(JSON.stringify(retry))).drafts[1],[]);
+ const submitted=recordAnswer(retry,bank[1],bank[1].answer);
+ assert.equal(submitted.wrongs[2].count,1);assert.equal(submitted.wrongs[2].status,'mastered');assert.equal(submitted.attempts.length,3);
+ assert.deepEqual(beginPractice(s,[1,2],2).drafts,s.drafts);
+});
