@@ -1,0 +1,10 @@
+import http from 'node:http';
+import path from 'node:path';
+import { readFile, stat } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
+const root=fileURLToPath(new URL('../dist/',import.meta.url));
+const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml'};
+const server=http.createServer(async(req,res)=>{try{const url=new URL(req.url,'http://127.0.0.1');const target=path.resolve(root,'.'+decodeURIComponent(url.pathname));if(target!==path.resolve(root)&&!target.startsWith(path.resolve(root)+path.sep)){res.writeHead(403);res.end();return}let file=target;try{const info=await stat(file);if(info.isDirectory())file=path.join(file,'index.html')}catch{file=path.join(root,'index.html')}const content=await readFile(file);res.writeHead(200,{'Content-Type':mime[path.extname(file)]??'application/octet-stream','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'});res.end(content)}catch{res.writeHead(404);res.end('File not found')}});
+server.on('error',err=>{console.error(err.code==='EADDRINUSE'?'端口5173已被占用。如果网站已启动，请打开 http://127.0.0.1:5173/ 。':err.message);process.exitCode=1});
+server.listen(5173,'127.0.0.1',()=>{console.log('五史题库已启动：http://127.0.0.1:5173/\n关闭此窗口或按 Ctrl+C 停止。');if(process.argv.includes('--open')&&process.platform==='win32')spawn('cmd.exe',['/d','/s','/c','start "" http://127.0.0.1:5173/'],{windowsHide:true,stdio:'ignore'})});
