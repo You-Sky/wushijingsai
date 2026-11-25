@@ -1,0 +1,8 @@
+.fill-choices { gap: 5px; }
+.fill-field { margin: 0; color: #434a50; font-size: 13px; font-weight: 600; }
+.fill-field input { width: 100%; min-width: 0; font-size: 16px; padding: 15px 16px; border: 1px solid #e1e5e9; background: #fff; border-radius: 8px; color: #263238; font-weight: 400; }
+.fill-field input:focus { outline: 2px solid #bc8386; outline-offset: 1px; }
+.fill-field input.fill-right { border-color: #b1cfbc; background: #f2f8f4; }
+.fill-field input.fill-wrong { border-color: #d5a3a5; background: #fdf1f1; }
+.fill-field input:disabled { opacity: 1; }
+.fill-choices .question-note { margin: 2px 0 0; }
